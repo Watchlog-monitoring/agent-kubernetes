@@ -7,6 +7,7 @@ const path = require('path');
 const configFilePath = path.join(__dirname, './../.env');
 const watchlog_server = process.env.WATCHLOG_SERVER;
 const apiKey = process.env.WATCHLOG_APIKEY;
+const WATCHLOG_CLUSTER_NAME = process.env.WATCHLOG_CLUSTER_NAME;
 
 // Helpers
 function isPrivateIP(ip) {
@@ -64,6 +65,7 @@ const watchlogServerSocket = ioServer(watchlog_server, {
 
         watchlogServerSocket.auth = {
             apiKey: apiKey,
+            clusterNode : WATCHLOG_CLUSTER_NAME,
             host: os.hostname(),
             ip: getSystemIP(),
             uuid: uuid,
