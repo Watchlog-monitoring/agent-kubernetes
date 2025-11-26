@@ -740,145 +740,73 @@ module.exports = class Application {
 
     // to collect and log metrics
     async collectMetrics() {
-        // اولویت: فایل config > environment variables (JSON) > environment variables (قدیمی)
+        // اولویت: فایل config > environment variables (قدیمی)
         const integrationConfig = loadIntegrationConfig();
 
-        // --- MongoDB ---
-        // استفاده از فایل config
+        // اگر فایل config وجود داشت، فقط از آن استفاده می‌کنیم و به env vars نگاه نمی‌کنیم
         if (integrationConfig) {
+            // --- MongoDB ---
             const mongoConfigs = integrationConfig.filter(c => c.service === 'mongodb' && (c.monitor === true || c.monitor === 'true'));
-            if (mongoConfigs.length > 0) {
-                for (const config of mongoConfigs) {
-                    const host = config.host || 'localhost';
-                    const port = config.port || '27017';
-                    const username = config.username || '';
-                    const password = config.password || '';
+            for (const config of mongoConfigs) {
+                const host = config.host || 'localhost';
+                const port = config.port || '27017';
+                const username = config.username || '';
+                const password = config.password || '';
 
-                    mongoIntegration.getData(host, port, username, password, (result) => {
-                        if (result) {
-                            emitWhenConnected('integrations/mongodbservice', { data: result });
-                        }
-                    });
-                }
+                mongoIntegration.getData(host, port, username, password, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/mongodbservice', { data: result });
+                    }
+                });
             }
-        }
-        // Backward compatibility: استفاده از env variables قدیمی
-        else if (process.env.MONITOR_MONGODB === 'true') {
-            const host = process.env.MONGODB_HOST || 'localhost';
-            const port = process.env.MONGODB_PORT || '27017';
-            const username = process.env.MONGODB_USERNAME || '';
-            const password = process.env.MONGODB_PASSWORD || '';
 
-            mongoIntegration.getData(host, port, username, password, (result) => {
-                if (result) {
-                    emitWhenConnected('integrations/mongodbservice', { data: result });
-                }
-            });
-        }
-
-        // --- Redis ---
-        // استفاده از فایل config
-        if (integrationConfig) {
+            // --- Redis ---
             const redisConfigs = integrationConfig.filter(c => c.service === 'redis' && (c.monitor === true || c.monitor === 'true'));
-            if (redisConfigs.length > 0) {
-                for (const config of redisConfigs) {
-                    const host = config.host || '127.0.0.1';
-                    const port = config.port || '6379';
-                    const password = config.password || '';
+            for (const config of redisConfigs) {
+                const host = config.host || '127.0.0.1';
+                const port = config.port || '6379';
+                const password = config.password || '';
 
-                    redisIntegration.getData(host, port, password, (result) => {
-                        if (result) {
-                            emitWhenConnected('integrations/redisservice', { data: result });
-                        }
-                    });
-                }
+                redisIntegration.getData(host, port, password, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/redisservice', { data: result });
+                    }
+                });
             }
-        }
-        // Backward compatibility: استفاده از env variables قدیمی
-        else if (process.env.MONITOR_REDIS === 'true') {
-            const host = process.env.REDIS_HOST || '127.0.0.1';
-            const port = process.env.REDIS_PORT || '6379';
-            const password = process.env.REDIS_PASSWORD || '';
 
-            redisIntegration.getData(host, port, password, (result) => {
-                if (result) {
-                    emitWhenConnected('integrations/redisservice', { data: result });
-                }
-            });
-        }
-
-        // --- PostgreSQL ---
-        // استفاده از فایل config
-        if (integrationConfig) {
+            // --- PostgreSQL ---
             const postgresConfigs = integrationConfig.filter(c => c.service === 'postgresql' && (c.monitor === true || c.monitor === 'true') && c.database && c.database.length > 0);
-            if (postgresConfigs.length > 0) {
-                for (const config of postgresConfigs) {
-                    const host = config.host || 'localhost';
-                    const port = config.port || '5432';
-                    const username = config.username || '';
-                    const password = config.password || '';
-                    const databases = Array.isArray(config.database) ? config.database : [config.database];
+            for (const config of postgresConfigs) {
+                const host = config.host || 'localhost';
+                const port = config.port || '5432';
+                const username = config.username || '';
+                const password = config.password || '';
+                const databases = Array.isArray(config.database) ? config.database : [config.database];
 
-                    postgresIntegration.getData(host, port, username, password, databases, (result) => {
-                        if (result) {
-                            emitWhenConnected('integrations/postgresqlservice', { data: result });
-                        }
-                    });
-                }
+                postgresIntegration.getData(host, port, username, password, databases, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/postgresqlservice', { data: result });
+                    }
+                });
             }
-        }
-        // Backward compatibility: استفاده از env variables قدیمی
-        else if (process.env.MONITOR_POSTGRESQL === 'true' && process.env.POSTGRESQL_DATABASES) {
-            const host = process.env.POSTGRESQL_HOST || 'localhost';
-            const port = process.env.POSTGRESQL_PORT || '5432';
-            const username = process.env.POSTGRESQL_USERNAME || '';
-            const password = process.env.POSTGRESQL_PASSWORD || '';
-            const dbs = process.env.POSTGRESQL_DATABASES.split(',').map(d => d.trim());
 
-            postgresIntegration.getData(host, port, username, password, dbs, (result) => {
-                if (result) {
-                    emitWhenConnected('integrations/postgresqlservice', { data: result });
-                }
-            });
-        }
-
-        // --- MySQL ---
-        // استفاده از فایل config
-        if (integrationConfig) {
+            // --- MySQL ---
             const mysqlConfigs = integrationConfig.filter(c => c.service === 'mysql' && (c.monitor === true || c.monitor === 'true') && c.database && c.database.length > 0);
-            if (mysqlConfigs.length > 0) {
-                for (const config of mysqlConfigs) {
-                    const host = config.host || 'localhost';
-                    const port = config.port || '3306';
-                    const username = config.username || '';
-                    const password = config.password || '';
-                    const databases = Array.isArray(config.database) ? config.database : [config.database];
+            for (const config of mysqlConfigs) {
+                const host = config.host || 'localhost';
+                const port = config.port || '3306';
+                const username = config.username || '';
+                const password = config.password || '';
+                const databases = Array.isArray(config.database) ? config.database : [config.database];
 
-                    mysqlIntegration.getData(host, port, username, password, databases, (result) => {
-                        if (result) {
-                            emitWhenConnected('integrations/mysqlservice', { data: result });
-                        }
-                    });
-                }
+                mysqlIntegration.getData(host, port, username, password, databases, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/mysqlservice', { data: result });
+                    }
+                });
             }
-        }
-        // Backward compatibility: استفاده از env variables قدیمی
-        else if (process.env.MONITOR_MYSQL === 'true' && process.env.MYSQL_DATABASES) {
-            const host = process.env.MYSQL_HOST || 'localhost';
-            const port = process.env.MYSQL_PORT || '3306';
-            const username = process.env.MYSQL_USERNAME || '';
-            const password = process.env.MYSQL_PASSWORD || '';
-            const dbs = process.env.MYSQL_DATABASES.split(',').map(d => d.trim());
 
-            mysqlIntegration.getData(host, port, username, password, dbs, (result) => {
-                if (result) {
-                    emitWhenConnected('integrations/mysqlservice', { data: result });
-                }
-            });
-        }
-
-        // --- Docker ---
-        if (integrationConfig) {
+            // --- Docker ---
             const dockerConfigs = integrationConfig.filter(c => c.service === 'docker' && (c.monitor === true || c.monitor === 'true'));
             if (dockerConfigs.length > 0) {
                 dockerIntegration.getData((result) => {
@@ -888,12 +816,73 @@ module.exports = class Application {
                 });
             }
         }
-        else if (process.env.MONITOR_DOCKER === 'true') {
-            dockerIntegration.getData((result) => {
-                if (result) {
-                    emitWhenConnected('dockerInfo', { data: result });
-                }
-            });
+        // اگر فایل config وجود نداشت، از environment variables استفاده می‌کنیم (backward compatibility)
+        else {
+            // --- MongoDB ---
+            if (process.env.MONITOR_MONGODB === 'true') {
+                const host = process.env.MONGODB_HOST || 'localhost';
+                const port = process.env.MONGODB_PORT || '27017';
+                const username = process.env.MONGODB_USERNAME || '';
+                const password = process.env.MONGODB_PASSWORD || '';
+
+                mongoIntegration.getData(host, port, username, password, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/mongodbservice', { data: result });
+                    }
+                });
+            }
+
+            // --- Redis ---
+            if (process.env.MONITOR_REDIS === 'true') {
+                const host = process.env.REDIS_HOST || '127.0.0.1';
+                const port = process.env.REDIS_PORT || '6379';
+                const password = process.env.REDIS_PASSWORD || '';
+
+                redisIntegration.getData(host, port, password, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/redisservice', { data: result });
+                    }
+                });
+            }
+
+            // --- PostgreSQL ---
+            if (process.env.MONITOR_POSTGRESQL === 'true' && process.env.POSTGRESQL_DATABASES) {
+                const host = process.env.POSTGRESQL_HOST || 'localhost';
+                const port = process.env.POSTGRESQL_PORT || '5432';
+                const username = process.env.POSTGRESQL_USERNAME || '';
+                const password = process.env.POSTGRESQL_PASSWORD || '';
+                const dbs = process.env.POSTGRESQL_DATABASES.split(',').map(d => d.trim());
+
+                postgresIntegration.getData(host, port, username, password, dbs, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/postgresqlservice', { data: result });
+                    }
+                });
+            }
+
+            // --- MySQL ---
+            if (process.env.MONITOR_MYSQL === 'true' && process.env.MYSQL_DATABASES) {
+                const host = process.env.MYSQL_HOST || 'localhost';
+                const port = process.env.MYSQL_PORT || '3306';
+                const username = process.env.MYSQL_USERNAME || '';
+                const password = process.env.MYSQL_PASSWORD || '';
+                const dbs = process.env.MYSQL_DATABASES.split(',').map(d => d.trim());
+
+                mysqlIntegration.getData(host, port, username, password, dbs, (result) => {
+                    if (result) {
+                        emitWhenConnected('integrations/mysqlservice', { data: result });
+                    }
+                });
+            }
+
+            // --- Docker ---
+            if (process.env.MONITOR_DOCKER === 'true') {
+                dockerIntegration.getData((result) => {
+                    if (result) {
+                        emitWhenConnected('dockerInfo', { data: result });
+                    }
+                });
+            }
         }
 
     }

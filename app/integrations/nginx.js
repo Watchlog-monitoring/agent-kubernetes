@@ -4,16 +4,38 @@ const fs = require('fs');
 const url = require('url');
 const {emitWhenConnected} = require('./../socketServer');
 const net = require('net');
+const path = require('path');
 let logBuffer = [];
 const MAX_BUFFER = 5000;
 const FLUSH_INTERVAL = 10000;
 const STATUS_CHECK_INTERVAL = 5000;
 let previousStatus = null;
-// آیا باید nginx رو مانیتور کنیم؟
-const monitorNginx = process.env.MONITOR_NGINX === 'true';
 
-// مسیر فایل access log
-const logFilePath = process.env.NGINX_ACCESS_LOG || '/var/log/nginx/access.log';
+// خواندن config از integration.json
+function loadNginxConfig() {
+    // اولویت: config/integration.json (برای Kubernetes)
+    let configPath = path.resolve(__dirname, '../config/integration.json');
+    if (!fs.existsSync(configPath)) {
+        // Fallback: integration.json در root
+        configPath = path.resolve(__dirname, '../../../integration.json');
+    }
+    
+    if (fs.existsSync(configPath)) {
+        try {
+            const integrations = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            return integrations.find(i => i.service === 'nginx');
+        } catch (error) {
+            console.error('[NGINX Agent] Error parsing integration.json:', error.message);
+        }
+    }
+    
+    // Fallback به environment variables (backward compatibility)
+    return null;
+}
+
+const nginxConfig = loadNginxConfig();
+const monitorNginx = nginxConfig ? (nginxConfig.monitor === true || nginxConfig.monitor === 'true') : (process.env.MONITOR_NGINX === 'true');
+const logFilePath = nginxConfig?.accessLog || process.env.NGINX_ACCESS_LOG || '/var/log/nginx/access.log';
 
 const logRegex = /^(\S+) - \S+ \[([^\]]+)\] "([A-Z]+) ([^ ]+) HTTP\/[^"]+" "([^"]+)" (\d{3}) \d+ "([^"]*)" "([^"]*)" ([\d.]+) ([\d.]+|-) ([\.\-]) (\S+) (\S+)$/;
 

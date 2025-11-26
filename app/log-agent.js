@@ -1,11 +1,12 @@
 const fs = require('fs');
+const path = require('path');
 const chokidar = require('chokidar');
 const { emitWhenConnected } = require("./socketServer");
 
 let monitorLogs = [];
-
+const CONFIG_FILE = path.join(__dirname, '../config/log-watchlist.json');
 let uniqueNames = new Set();
-let logConfig = loadConfigFromEnv();
+let logConfig = loadConfig();
 
 const autoPatterns = {
     nginx: /^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) "(.*?)" "(.*?)"/,
@@ -18,25 +19,37 @@ const autoPatterns = {
     default: /^(.*?)\s+(\w+):\s+(.*)$/,
 };
 
-function loadConfigFromEnv() {
-    if (!process.env.LOG_WATCHLIST_JSON) {
-        console.warn("ℹ No log watchlist found in environment. Skipping log monitoring.");
-        return { logs: [] };
+function loadConfig() {
+    // اولویت: فایل config/log-watchlist.json
+    if (fs.existsSync(CONFIG_FILE)) {
+        try {
+            const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+            let config = JSON.parse(data);
+            ensureUniqueNames(config.logs || config);
+            validatePatterns(config.logs || config);
+            return { logs: Array.isArray(config.logs) ? config.logs : config };
+        } catch (error) {
+            console.error(`❌ Error parsing ${CONFIG_FILE}:`, error.message);
+            process.exit(1);
+        }
     }
-
-    try {
-        const parsed = JSON.parse(process.env.LOG_WATCHLIST_JSON);
-        if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure (expected array)");
-
-        ensureUniqueNames(parsed);
-        validatePatterns(parsed);
-
-        return { logs: parsed };
-
-    } catch (error) {
-        console.error("❌ Failed to parse LOG_WATCHLIST_JSON:", error.message);
-        process.exit(1);
+    
+    // Fallback: environment variable (backward compatibility)
+    if (process.env.LOG_WATCHLIST_JSON) {
+        try {
+            const parsed = JSON.parse(process.env.LOG_WATCHLIST_JSON);
+            if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure (expected array)");
+            ensureUniqueNames(parsed);
+            validatePatterns(parsed);
+            return { logs: parsed };
+        } catch (error) {
+            console.error("❌ Failed to parse LOG_WATCHLIST_JSON:", error.message);
+            process.exit(1);
+        }
     }
+    
+    console.warn("ℹ No log watchlist found. Skipping log monitoring.");
+    return { logs: [] };
 }
 
 function ensureUniqueNames(logs) {
@@ -234,4 +247,14 @@ function startMonitoring() {
 
 // ** Start Monitoring Logs **
 startMonitoring();
+
+// ** Reload Config if log-watchlist.json Changes **
+if (fs.existsSync(CONFIG_FILE)) {
+    chokidar.watch(CONFIG_FILE, { persistent: true })
+        .on('change', () => {
+            console.log("🔄 Reloading log watchlist config...");
+            logConfig = loadConfig();
+            startMonitoring();
+        });
+}
 
