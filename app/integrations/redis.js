@@ -58,8 +58,10 @@ exports.getData = async function (host, port, password, callback) {
 
         // ساخت آبجکت متریک‌ها
         const metrics = {
+            id: `${host}:${port}`, // شناسه منحصر به فرد برای هر integration
             version: info.redis_version,
             host: host,
+            port: port,
             tcp_port: info.tcp_port,
             uptime: info.uptime_in_seconds,
             connectedClients: info.connected_clients,

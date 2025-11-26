@@ -32,6 +32,9 @@ exports.getData = async function(host, port, username, password, callback) {
 
     // استخراج متریک‌ها
     const metrics = {
+      id: `${host}:${port}`, // شناسه منحصر به فرد برای هر integration
+      host: host,
+      port: port,
       version: status.version,
       uptime: unwrapLong(status.uptime) || status.uptime,
       connections: unwrapLong(status.connections.current),

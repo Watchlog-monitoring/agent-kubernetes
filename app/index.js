@@ -4,13 +4,32 @@ const { emitWhenConnected } = require("./socketServer");
 const express = require('express')
 const app = express()
 const path = require('path')
+const fs = require('fs');
 const dockerIntegration = require('./integrations/docker')
 const mongoIntegration = require('./integrations/mongo')
 const redisIntegration = require('./integrations/redis')
 const nginxIntegration = require('./integrations/nginx')
 const postgresIntegration = require('./integrations/postgresql');
 const mysqlIntegration = require('./integrations/mysql');
+const gitlabIntegration = require('./integrations/gitlab/index');
 const { collectAndEmitSystemMetrics } = require('./watchlog-k8s-metrics');
+
+// تابع برای خواندن فایل integration.json از پوشه config
+function loadIntegrationConfig() {
+    const configPath = path.join(__dirname, './config/integration.json');
+    try {
+        if (fs.existsSync(configPath)) {
+            const fileContent = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(fileContent);
+            if (Array.isArray(config)) {
+                return config;
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error loading integration.json:", error.message);
+    }
+    return null;
+}
 
 const logagent = require('./log-agent')
 let customMetrics = []
@@ -721,10 +740,30 @@ module.exports = class Application {
 
     // to collect and log metrics
     async collectMetrics() {
-
+        // اولویت: فایل config > environment variables (JSON) > environment variables (قدیمی)
+        const integrationConfig = loadIntegrationConfig();
 
         // --- MongoDB ---
-        if (process.env.MONITOR_MONGODB === 'true') {
+        // استفاده از فایل config
+        if (integrationConfig) {
+            const mongoConfigs = integrationConfig.filter(c => c.service === 'mongodb' && (c.monitor === true || c.monitor === 'true'));
+            if (mongoConfigs.length > 0) {
+                for (const config of mongoConfigs) {
+                    const host = config.host || 'localhost';
+                    const port = config.port || '27017';
+                    const username = config.username || '';
+                    const password = config.password || '';
+
+                    mongoIntegration.getData(host, port, username, password, (result) => {
+                        if (result) {
+                            emitWhenConnected('integrations/mongodbservice', { data: result });
+                        }
+                    });
+                }
+            }
+        }
+        // Backward compatibility: استفاده از env variables قدیمی
+        else if (process.env.MONITOR_MONGODB === 'true') {
             const host = process.env.MONGODB_HOST || 'localhost';
             const port = process.env.MONGODB_PORT || '27017';
             const username = process.env.MONGODB_USERNAME || '';
@@ -738,7 +777,25 @@ module.exports = class Application {
         }
 
         // --- Redis ---
-        if (process.env.MONITOR_REDIS === 'true') {
+        // استفاده از فایل config
+        if (integrationConfig) {
+            const redisConfigs = integrationConfig.filter(c => c.service === 'redis' && (c.monitor === true || c.monitor === 'true'));
+            if (redisConfigs.length > 0) {
+                for (const config of redisConfigs) {
+                    const host = config.host || '127.0.0.1';
+                    const port = config.port || '6379';
+                    const password = config.password || '';
+
+                    redisIntegration.getData(host, port, password, (result) => {
+                        if (result) {
+                            emitWhenConnected('integrations/redisservice', { data: result });
+                        }
+                    });
+                }
+            }
+        }
+        // Backward compatibility: استفاده از env variables قدیمی
+        else if (process.env.MONITOR_REDIS === 'true') {
             const host = process.env.REDIS_HOST || '127.0.0.1';
             const port = process.env.REDIS_PORT || '6379';
             const password = process.env.REDIS_PASSWORD || '';
@@ -751,7 +808,27 @@ module.exports = class Application {
         }
 
         // --- PostgreSQL ---
-        if (process.env.MONITOR_POSTGRESQL === 'true' && process.env.POSTGRESQL_DATABASES) {
+        // استفاده از فایل config
+        if (integrationConfig) {
+            const postgresConfigs = integrationConfig.filter(c => c.service === 'postgresql' && (c.monitor === true || c.monitor === 'true') && c.database && c.database.length > 0);
+            if (postgresConfigs.length > 0) {
+                for (const config of postgresConfigs) {
+                    const host = config.host || 'localhost';
+                    const port = config.port || '5432';
+                    const username = config.username || '';
+                    const password = config.password || '';
+                    const databases = Array.isArray(config.database) ? config.database : [config.database];
+
+                    postgresIntegration.getData(host, port, username, password, databases, (result) => {
+                        if (result) {
+                            emitWhenConnected('integrations/postgresqlservice', { data: result });
+                        }
+                    });
+                }
+            }
+        }
+        // Backward compatibility: استفاده از env variables قدیمی
+        else if (process.env.MONITOR_POSTGRESQL === 'true' && process.env.POSTGRESQL_DATABASES) {
             const host = process.env.POSTGRESQL_HOST || 'localhost';
             const port = process.env.POSTGRESQL_PORT || '5432';
             const username = process.env.POSTGRESQL_USERNAME || '';
@@ -766,7 +843,27 @@ module.exports = class Application {
         }
 
         // --- MySQL ---
-        if (process.env.MONITOR_MYSQL === 'true' && process.env.MYSQL_DATABASES) {
+        // استفاده از فایل config
+        if (integrationConfig) {
+            const mysqlConfigs = integrationConfig.filter(c => c.service === 'mysql' && (c.monitor === true || c.monitor === 'true') && c.database && c.database.length > 0);
+            if (mysqlConfigs.length > 0) {
+                for (const config of mysqlConfigs) {
+                    const host = config.host || 'localhost';
+                    const port = config.port || '3306';
+                    const username = config.username || '';
+                    const password = config.password || '';
+                    const databases = Array.isArray(config.database) ? config.database : [config.database];
+
+                    mysqlIntegration.getData(host, port, username, password, databases, (result) => {
+                        if (result) {
+                            emitWhenConnected('integrations/mysqlservice', { data: result });
+                        }
+                    });
+                }
+            }
+        }
+        // Backward compatibility: استفاده از env variables قدیمی
+        else if (process.env.MONITOR_MYSQL === 'true' && process.env.MYSQL_DATABASES) {
             const host = process.env.MYSQL_HOST || 'localhost';
             const port = process.env.MYSQL_PORT || '3306';
             const username = process.env.MYSQL_USERNAME || '';
@@ -781,14 +878,23 @@ module.exports = class Application {
         }
 
         // --- Docker ---
-        if (process.env.MONITOR_DOCKER === 'true') {
+        if (integrationConfig) {
+            const dockerConfigs = integrationConfig.filter(c => c.service === 'docker' && (c.monitor === true || c.monitor === 'true'));
+            if (dockerConfigs.length > 0) {
+                dockerIntegration.getData((result) => {
+                    if (result) {
+                        emitWhenConnected('dockerInfo', { data: result });
+                    }
+                });
+            }
+        }
+        else if (process.env.MONITOR_DOCKER === 'true') {
             dockerIntegration.getData((result) => {
                 if (result) {
                     emitWhenConnected('dockerInfo', { data: result });
                 }
             });
         }
-
 
     }
 
