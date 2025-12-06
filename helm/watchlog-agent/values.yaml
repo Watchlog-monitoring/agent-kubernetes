@@ -1,0 +1,153 @@
+# Watchlog Agent Helm Values
+# Required: Update these values with your credentials
+watchlog:
+  apiKey: ""  # Required: Your Watchlog API key
+  server: ""  # Required: Your Watchlog server URL
+  clusterName: "default-cluster"  # Change to your cluster name
+
+# Namespace configuration
+namespace:
+  name: monitoring
+  create: true
+
+# Agent image configuration
+image:
+  repository: watchlog/watchlog-node-agent
+  tag: latest
+  pullPolicy: Always
+
+# Vector image configuration
+vectorImage:
+  repository: timberio/vector
+  tag: 0.38.0-alpine
+  pullPolicy: IfNotPresent
+
+# Agent container resources
+resources:
+  agent:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+  vector:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# Integration configuration
+# Customize this to enable/configure integrations
+integration:
+  config: |
+    [
+      {
+        "service": "docker",
+        "monitor": false
+      },
+      {
+        "service": "postgresql",
+        "monitor": false,
+        "host": "127.0.0.1",
+        "port": "5432",
+        "username": "postgres",
+        "password": "",
+        "database": []
+      },
+      {
+        "service": "mysql",
+        "monitor": false,
+        "host": "127.0.0.1",
+        "port": "3306",
+        "username": "root",
+        "password": "",
+        "database": []
+      },
+      {
+        "service": "redis",
+        "monitor": false,
+        "host": "127.0.0.1",
+        "port": "6379",
+        "password": ""
+      },
+      {
+        "service": "mongodb",
+        "monitor": false,
+        "host": "127.0.0.1",
+        "port": "27017",
+        "username": "",
+        "password": ""
+      },
+      {
+        "service": "nginx",
+        "monitor": false,
+        "accessLog": "/var/log/nginx/access.log"
+      },
+      {
+        "service": "gitlab",
+        "monitor": false,
+        "baseUrl": "https://gitlab.com",
+        "token": "",
+        "projects": [],
+        "monitorLogs": true,
+        "metrics": {
+          "pipelines": true,
+          "jobs": true,
+          "runners": true,
+          "mrs": true,
+          "deployments": true
+        }
+      }
+    ]
+
+# Log watchlist configuration
+# Add log files you want to monitor
+logWatchlist:
+  config: |
+    {
+      "logs": []
+    }
+
+# Vector configuration (optional)
+vector:
+  namespaceInclude: ".*"        # Include all namespaces (regex)
+  namespaceExclude: ""           # Exclude pattern (empty = no exclusion)
+  minSeverity: "TRACE"            # Minimum log level: TRACE, DEBUG, INFO, WARNING, ERROR
+
+# Service configuration
+service:
+  enabled: true
+  type: ClusterIP
+  port: 3774
+
+# ServiceAccount configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "" # If not set, a name is generated
+
+# Tolerations for DaemonSet
+tolerations:
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+  - key: node.kubernetes.io/disk-pressure
+    operator: Exists
+    effect: NoSchedule
+  - key: node.kubernetes.io/memory-pressure
+    operator: Exists
+    effect: NoSchedule
+  - key: node.kubernetes.io/network-unavailable
+    operator: Exists
+    effect: NoSchedule
+
+# Node selector (optional)
+nodeSelector: {}
+
+# Affinity rules (optional)
+affinity: {}

@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "watchlog-agent.fullname" . }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "watchlog-agent.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "watchlog-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "watchlog-agent.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "watchlog-agent.serviceAccountName" . }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              hostPort: {{ .Values.service.port }}
+          env:
+            - name: UUID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MODE
+              value: "node"
+            - name: WATCHLOG_APIKEY
+              value: "{{ .Values.watchlog.apiKey }}"
+            - name: WATCHLOG_SERVER
+              value: "{{ .Values.watchlog.server }}"
+            - name: WATCHLOG_CLUSTER_NAME
+              value: "{{ .Values.watchlog.clusterName }}"
+          volumeMounts:
+            - name: integration-config
+              mountPath: /app/app/config/integration.json
+              subPath: integration.json
+              readOnly: true
+            - name: log-watchlist-config
+              mountPath: /app/app/config/log-watchlist.json
+              subPath: log-watchlist.json
+              readOnly: true
+            - name: host-root
+              mountPath: /host
+              mountPropagation: HostToContainer
+            - name: proc
+              mountPath: /proc
+            - name: sys
+              mountPath: /sys
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          resources:
+            {{- toYaml .Values.resources.agent | nindent 12 }}
+        - name: vector
+          image: "{{ .Values.vectorImage.repository }}:{{ .Values.vectorImage.tag }}"
+          imagePullPolicy: {{ .Values.vectorImage.pullPolicy }}
+          env:
+            - name: WATCHLOG_CLUSTER_NAME
+              value: "{{ .Values.watchlog.clusterName }}"
+            - name: WATCHLOG_NAMESPACE_INCLUDE_RE
+              value: "{{ .Values.vector.namespaceInclude }}"
+            - name: WATCHLOG_NAMESPACE_EXCLUDE_RE
+              value: "{{ .Values.vector.namespaceExclude }}"
+            - name: WATCHLOG_MIN_SEVERITY
+              value: "{{ .Values.vector.minSeverity }}"
+          args: ["-c", "/etc/vector/vector.toml"]
+          volumeMounts:
+            - name: vector-config
+              mountPath: /etc/vector
+              readOnly: true
+            - name: varlog-containers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlog-pods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlib-docker-containers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources.vector | nindent 12 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      volumes:
+        - name: integration-config
+          configMap:
+            name: {{ include "watchlog-agent.fullname" . }}-integration
+        - name: log-watchlist-config
+          configMap:
+            name: {{ include "watchlog-agent.fullname" . }}-log-watchlist
+        - name: vector-config
+          configMap:
+            name: {{ include "watchlog-agent.fullname" . }}-vector-config
+        - name: host-root
+          hostPath:
+            path: /
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+        - name: varlog-containers
+          hostPath:
+            path: /var/log/containers
+        - name: varlog-pods
+          hostPath:
+            path: /var/log/pods
+        - name: varlib-docker-containers
+          hostPath:
+            path: /var/lib/docker/containers
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

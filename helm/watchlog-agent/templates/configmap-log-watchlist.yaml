@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "watchlog-agent.fullname" . }}-log-watchlist
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "watchlog-agent.labels" . | nindent 4 }}
+data:
+  log-watchlist.json: |
+{{ .Values.logWatchlist.config | indent 4 }}
+

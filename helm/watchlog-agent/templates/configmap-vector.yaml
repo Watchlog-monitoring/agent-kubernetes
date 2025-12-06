@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "watchlog-agent.fullname" . }}-vector-config
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "watchlog-agent.labels" . | nindent 4 }}
+data:
+  vector.toml: |-
+    [sources.kube]
+    type = "kubernetes_logs"
+    auto_partial_merge = true
+
+    [transforms.normalize]
+    type = "remap"
+    inputs = ["kube"]
+    source = '''
+    .cluster = get_env_var("WATCHLOG_CLUSTER_NAME") ?? "default-cluster"
+    .node = .kubernetes.node_name
+    .namespace = .kubernetes.pod_namespace
+    .pod = .kubernetes.pod_name
+    .container = .kubernetes.container_name
+    .timestamp = format_timestamp!(.timestamp ?? now(), "%+")
+    .message = to_string!(.message ?? .log ?? "")
+
+    if is_null(.severity) || .severity == "" {
+      if match(.message, r'(?i)\bERROR\b') {
+        .severity = "ERROR"
+      } else if match(.message, r'(?i)\bWARN(ING)?\b') {
+        .severity = "WARNING"
+      } else if match(.message, r'(?i)\bINFO\b') {
+        .severity = "INFO"
+      } else if match(.message, r'(?i)\bDEBUG\b') {
+        .severity = "DEBUG"
+      } else if match(.message, r'(?i)\bTRACE\b') {
+        .severity = "TRACE"
+      } else {
+        .severity = "UNKNOWN"
+      }
+    } else {
+      .severity = upcase(to_string(.severity))
+    }
+
+    del(.kubernetes)
+    '''
+
+    [sinks.agent]
+    type = "http"
+    inputs = ["normalize"]
+    uri = "http://127.0.0.1:3774/ingest/logs"
+    method = "post"
+    encoding.codec = "json"
+    compression = "gzip"
+    batch.max_events = 1000
+    batch.timeout_secs = 5
+    request.in_flight_limit = 8
+    request.retry_initial_backoff_secs = 1
+    request.retry_max_duration_secs = 300
+    buffer.type = "memory"
+    buffer.max_events = 10000
+    buffer.when_full = "drop_newest"
