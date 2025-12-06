@@ -76,7 +76,6 @@ async function collectAndEmitSystemMetrics() {
       latencyMetric
     ];
 
-    console.log(`📊 Sending system metrics: ${allMetrics.length} entries`);
     emitWhenConnected('serverMetricsArray', { data: allMetrics });
   } catch (err) {
     console.error('❌ Error collecting system metrics:', err);

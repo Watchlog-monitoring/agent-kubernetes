@@ -4,7 +4,7 @@ const chokidar = require('chokidar');
 const { emitWhenConnected } = require("./socketServer");
 
 let monitorLogs = [];
-const CONFIG_FILE = path.join(__dirname, '../config/log-watchlist.json');
+const CONFIG_FILE = path.join(__dirname, './config/log-watchlist.json');
 let uniqueNames = new Set();
 let logConfig = loadConfig();
 

@@ -130,16 +130,13 @@ module.exports = class Application {
         // 6. Handle incoming metrics
         app.post('/apm/:app/metrics', (req, res) => {
             try {
-                console.log("yyy")
-
                 let buffer = req.body;
                 if (req.headers['content-encoding'] === 'gzip') {
                     buffer = zlib.gunzipSync(buffer);
                 }
                 const payload = JSON.parse(buffer.toString('utf8'));
-                console.log(payload)
                 // Forward metrics under event 'apm:metrics'
-                  emitWhenConnected('apm:metrics', payload);
+                emitWhenConnected('apm:metrics', payload);
                 res.sendStatus(200);
             } catch (err) {
                 console.error('Error processing /apm/metrics:', err);
@@ -153,9 +150,8 @@ module.exports = class Application {
                     buffer = zlib.gunzipSync(buffer);
                 }
                 const payload = JSON.parse(buffer.toString('utf8'));
-                console.log(payload)
                 // Forward metrics under event 'apm:metrics'
-                  emitWhenConnected('apm:metrics', {payload, app: req.params.app});
+                emitWhenConnected('apm:metrics', {payload, app: req.params.app});
                 res.sendStatus(200);
             } catch (err) {
                 console.error('Error processing /apm/metrics:', err);

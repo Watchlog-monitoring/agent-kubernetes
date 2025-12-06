@@ -1,0 +1,19 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "watchlog-agent.fullname" . }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "watchlog-agent.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "watchlog-agent.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: 3774
+  clusterIP: None
+{{- end }}
