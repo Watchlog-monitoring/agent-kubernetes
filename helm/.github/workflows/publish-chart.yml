@@ -1,0 +1,45 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'agent-kubernetes/helm/watchlog-agent/**'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Package Chart
+        run: |
+          cd agent-kubernetes/helm
+          helm package watchlog-agent
+
+      - name: Create Repository Index
+        run: |
+          cd agent-kubernetes/helm
+          mkdir -p charts-repo
+          cp watchlog-agent-*.tgz charts-repo/
+          if [ -f charts-repo/index.yaml ]; then
+            helm repo index charts-repo --url https://charts.watchlog.io --merge charts-repo/index.yaml
+          else
+            helm repo index charts-repo --url https://charts.watchlog.io
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./agent-kubernetes/helm/charts-repo
+          cname: charts.watchlog.io  # Optional: if you have a custom domain
+

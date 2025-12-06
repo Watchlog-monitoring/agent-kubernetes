@@ -1,2 +1,5 @@
 node_modules
 test.js
+
+# Helm repository (should be in separate repo)
+helm/charts-repo/
