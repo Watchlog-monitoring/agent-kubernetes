@@ -5,5 +5,9 @@ metadata:
   name: {{ .Values.namespace.name }}
   labels:
     {{- include "watchlog-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 {{- end }}
 
