@@ -66,6 +66,10 @@ spec:
           image: "{{ .Values.vectorImage.repository }}:{{ .Values.vectorImage.tag }}"
           imagePullPolicy: {{ .Values.vectorImage.pullPolicy }}
           env:
+            - name: VECTOR_SELF_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             - name: WATCHLOG_CLUSTER_NAME
               value: "{{ .Values.watchlog.clusterName }}"
             - name: WATCHLOG_NAMESPACE_INCLUDE_RE

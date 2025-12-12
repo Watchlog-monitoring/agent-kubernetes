@@ -20,8 +20,23 @@ data:
     .namespace = .kubernetes.pod_namespace
     .pod = .kubernetes.pod_name
     .container = .kubernetes.container_name
-    .timestamp = format_timestamp!(.timestamp ?? now(), "%+")
-    .message = to_string!(.message ?? .log ?? "")
+    
+    if is_null(.timestamp) {
+      .timestamp = now()
+    }
+    .timestamp = format_timestamp!(.timestamp, "%+")
+    
+    if is_null(.message) {
+      if is_null(.log) {
+        .message = ""
+      } else {
+        .message = to_string!(.log)
+      }
+    } else {
+      .message = to_string!(.message)
+    }
+    
+    .message = string(.message)
 
     if is_null(.severity) || .severity == "" {
       if match(.message, r'(?i)\bERROR\b') {
@@ -38,7 +53,7 @@ data:
         .severity = "UNKNOWN"
       }
     } else {
-      .severity = upcase(to_string(.severity))
+      .severity = upcase(to_string!(.severity))
     }
 
     del(.kubernetes)
