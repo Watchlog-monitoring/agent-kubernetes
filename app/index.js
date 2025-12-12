@@ -13,6 +13,7 @@ const postgresIntegration = require('./integrations/postgresql');
 const mysqlIntegration = require('./integrations/mysql');
 const gitlabIntegration = require('./integrations/gitlab/index');
 const { collectAndEmitSystemMetrics } = require('./watchlog-k8s-metrics');
+const zlib = require('zlib');
 
 // تابع برای خواندن فایل integration.json از پوشه config
 function loadIntegrationConfig() {

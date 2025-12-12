@@ -15,7 +15,7 @@ namespace:
 # Agent image configuration
 image:
   repository: watchlog/watchlog-node-agent
-  tag: latest
+  tag: 1.5.0
   pullPolicy: Always
 
 # Vector image configuration
