@@ -9,5 +9,7 @@ metadata:
   annotations:
     meta.helm.sh/release-name: {{ .Release.Name }}
     meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+    # Allow Helm to skip this resource if namespace already exists
+    helm.sh/resource-policy: keep
 {{- end }}
 

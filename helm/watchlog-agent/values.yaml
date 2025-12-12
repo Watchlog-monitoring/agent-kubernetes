@@ -8,6 +8,8 @@ watchlog:
 # Namespace configuration
 namespace:
   name: monitoring
+  # Set to false if the namespace already exists (to avoid Helm ownership errors)
+  # If true, Helm will create the namespace. If false, use existing namespace.
   create: true
 
 # Agent image configuration
